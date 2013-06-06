@@ -1,10 +1,13 @@
 (ns tcms-upload.core
   (:require [clojure.java.io :as io]
-            [necessary-evil.core :as rpc]
             [necessary-evil.fault :refer [fault?]]
             [clojure.set :refer [intersection rename project join rename-keys]]
-            [clojure.core.contracts :as contracts]
             [clojure.xml :as xml]
+            [tcms-upload.rpc.test-plan :as test-plan]
+            [tcms-upload.rpc.build :as build]
+            [tcms-upload.rpc.user :as user]
+            [tcms-upload.rpc.test-run :as test-run]
+            [tcms-upload.rpc.test-case-run :as test-case-run]
             [clojure.tools.logging :as log]
             [slingshot.slingshot :refer [throw+]]
             [clojure.zip :as zip]
@@ -44,7 +47,7 @@
 
 (defn process-test-case-ids [connection plan-id case-list]
   (some->
-    (rpc.test-plan/get-test-cases connection [plan-id])
+    (test-plan/get-test-cases connection [plan-id])
     set
     (project [:case_id :alias])
     (rename {:case_id :case})
@@ -57,19 +60,19 @@
 
 (defn product-and-version-id [con opts]
   (-> 
-    (rpc.test-plan/get con [(:plan opts)])
+    (test-plan/get con [(:plan opts)])
     (map-project [:product_id :product_version_id])
     (rename-keys {:product_id :product, :product_version_id :product_version})))
 
 (defn build-id [con opts]
   (->
-    (rpc.build/check-build con [(:build-name opts) (:product opts)])
+    (build/check-build con [(:build-name opts) (:product opts)])
     (map-project [:build_id])
     (rename-keys {:build_id :build})))
 
 (defn manager-id [con opts]
   (->
-    (rpc.user/filter con [{:username__startswith (:manager-login opts)}])
+    (user/filter con [{:username__startswith (:manager-login opts)}])
     first
     (map-project [:id])
     (rename-keys {:id :manager})))
@@ -89,7 +92,7 @@
   (-> opts
     (map-project [:plan :build :manager :summary 
                   :product :product_version])
-    (#(rpc.test-run/create con [%]))
+    (#(test-run/create con [%]))
     (map-project [:run_id])
     (rename-keys {:run_id :run})))
 
@@ -99,7 +102,7 @@
     (resolv #{} new-test-run con) ;not checking run    
     (#(map (partial merge %) cases))
     (#(project % [:build :run :case :case_run_status]))
-    (map #(rpc.test-case-run/create con [%]))
+    (map #(test-case-run/create con [%]))
     doall))
 
 
