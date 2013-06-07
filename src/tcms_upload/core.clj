@@ -94,15 +94,25 @@
 
 (defn new-test-run [con opts]
   (-> opts
-    (map-project [:plan :build :manager :summary 
+    (map-project [:plan :build :manager :status :summary 
                   :product :product_version])
     (#(test-run/create con [%]))
     (map-project [:run_id])
     (rename-keys {:run_id :run})))
 
+(defn test-run-status [cases con opts]
+   (some->
+    (test-plan/get-test-cases con [(:plan opts)])
+    set
+    (project [:case_id])
+    (rename {:case_id :case})
+    (#(clojure.set/subset? % (project cases [:case])))
+    (#(if % {:status 1}
+            {:status 0})))) ; if cases of plan are a subset of cases in xml return STOPPED (1)
 
 (defn create-test-run [con opts cases]
   (->> opts
+    (resolv #{:status} (partial test-run-status cases) con) 
     (resolv #{} new-test-run con) ;not checking run    
     (#(map (partial merge %) cases))
     (#(project % [:build :run :case :case_run_status]))
