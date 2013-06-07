@@ -1,6 +1,6 @@
-(defproject tcms-upload "0.1.0-SNAPSHOT"
-  :description "FIXME: writrpc.test-plane description"
-  :url "http://example.com/FIXME"
+(defproject tcms-upload "0.1.1-SNAPSHOT"
+  :description "A simple command-line app for uploading test-ng xml results to tcms test runs."
+  :url "https://github.com/AdamSaleh/tcms-upload"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.0"]

@@ -67,6 +67,10 @@
 (defn build-id [con opts]
   (->
     (build/check-build con [(:build-name opts) (:product opts)])
+    (#(if (contains? % :build_id) %
+       (if (:dry-run con)
+         (build/check-build con ["unspecified" (:product opts)])
+         (build/create con [{:name (:build-name opts) :product (:product opts)}]))))
     (map-project [:build_id])
     (rename-keys {:build_id :build})))
 
