@@ -6,7 +6,9 @@ Requires for the test cases in xml and tcms to share an uuid string, namely, it 
 
 ## Usage
 
- java -jar tcms-upload-0.1.0-SNAPSHOT-standalone.jar --dry-run --username asalehh --password #Nitrate1 --xml-result /home/asaleh/clean-room/tcms-upload/testng-results.xml --plan 9023 --build-name unspecified --manager-login asaleh --summary test23
+ java -jar tcms-upload-0.1.0-SNAPSHOT-standalone.jar --dry-run --username USERNAME --password PASSWORD --xml-result /home/asaleh/clean-room/tcms-upload/testng-results.xml --plan 9023 --build-name unspecified --manager-login asaleh --summary test23
+
+DONT FORGET TO REMOVE THE DRY RUN WHEN RUNNING
 
 ## License
 
