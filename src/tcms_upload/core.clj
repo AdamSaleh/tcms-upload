@@ -9,7 +9,7 @@
             [tcms-upload.rpc.test-run :as test-run]
             [tcms-upload.rpc.test-case-run :as test-case-run]
             [clojure.tools.logging :as log]
-            [slingshot.slingshot :refer [throw+]]
+            [slingshot.slingshot :refer [try+ throw+]]
             [clojure.zip :as zip]
             [clojure.data.zip :as zf]
             [clojure.data.zip.xml :as zfx]
@@ -103,11 +103,10 @@
     (#(map (partial merge %) cases))
     (#(project % [:build :run :case :case_run_status]))
     (map #(test-case-run/create con [%]))
-    doall))
-
+    doall
+    log/info))
 
 (defn upload [con opts]
-  (log/info "Loggin in with " con)
   (let [xml (get-alias-status-from-xml (:xml-result opts))
         resolved-opts 
           (->>  opts
@@ -120,6 +119,13 @@
           (process-test-case-ids con (:plan resolved-opts))
           (#(do (log/info "Test cases:" %) %))
           (create-test-run con resolved-opts))))
+
+
+(defn try-upload [con opts]
+  (try+
+    (upload con opts)
+    (catch Object _
+                 (log/error (:message &throw-context)))))
 
 (defn -main
   "I don't do a whole lot."
@@ -144,8 +150,19 @@
          (:username opts) (:password opts) (:rpc-url opts)
          (:xml-result opts) (:plan opts) (:build-name opts)
          (:manager-login opts) (:summary opts))
-      (do
-        (let [connection (project opts [:username :password :dry-run :rpc-url])]
-          (upload connection opts))
-        
-      (println banner)))))
+      
+        (let [connection (map-project opts [:username :password :dry-run :rpc-url])]
+            (try-upload connection opts))    
+        (do 
+          (when (not (:username opts)) (println "Tcms username not set"))
+          (when (not (:password opts)) (println "Tcms password not set"))
+          (when (not (:xml-result opts)) (println "Test-ng result xml path not set"))
+          (when (not (:plan opts)) (println "Tcms test plan id not set"))
+          (when (not (:build-name opts)) (println "Build-name not set"))
+          (when (not (:manager-login opts)) (println "Tcms manager's login not set"))
+          (when (not (:summary opts)) (println "Test run summary not set"))
+          (println banner)))))
+;java -jar tcms-upload-0.1.0-SNAPSHOT-standalone.jar 
+;--dry-run --username asaleh --password #Nitrate1 --xml-result /home/asaleh/clean-room/tcms-upload/testng-results.xml 
+;--plan 9023 --build-name unspecified --manager-login asaleh --summary test23
+
