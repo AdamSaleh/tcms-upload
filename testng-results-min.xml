@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testng-results skipped="0" failed="0" total="2" passed="2">
+   <suite name="CFSE Test Suite" duration-ms="51310" started-at="2013-05-24T03:53:47Z" finished-at="2013-05-24T03:54:38Z">
+      <groups>
+         <group name="cfse-cli">
+            <method signature="ErrataTests.test_errataInfo()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataInfo" class="com.redhat.qe.katello.tests.cli.ErrataTests" />
+            <method signature="ErrataTests.test_errataList()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataList" class="com.redhat.qe.katello.tests.cli.ErrataTests" />
+         </group>
+         <!-- cfse-cli -->
+         <group name="Errata">
+            <method signature="ErrataTests.test_errataInfo()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataInfo" class="com.redhat.qe.katello.tests.cli.ErrataTests" />
+            <method signature="ErrataTests.test_errataList()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataList" class="com.redhat.qe.katello.tests.cli.ErrataTests" />
+         </group>
+         <!-- Errata -->
+      </groups>
+      <test name="CLI_Tests" duration-ms="51310" started-at="2013-05-24T03:53:47Z" finished-at="2013-05-24T03:54:38Z">
+         <class name="com.redhat.qe.katello.tests.cli.ErrataTests">
+            <test-method status="PASS" signature="setUp()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="setUp" is-config="true" duration-ms="49165" started-at="2013-05-23T23:53:47Z" description="Generate unique objects" finished-at="2013-05-23T23:54:36Z" />
+            <!-- setUp -->
+            <test-method status="PASS" signature="test_errataInfo()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataInfo" duration-ms="1081" started-at="2013-05-23T23:54:36Z" description="2542ae61-8de6-40ce-866f-999c39fa9018" finished-at="2013-05-23T23:54:37Z" />
+            <!-- test_errataInfo -->
+            <test-method status="PASS" signature="test_errataList()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataList" duration-ms="1043" started-at="2013-05-23T23:54:37Z" description="8782a6e0-f41a-48d5-8599-bfe7f24078f6" finished-at="2013-05-23T23:54:38Z" />
+            <!-- test_errataList -->
+         </class>
+         <!-- com.redhat.qe.katello.tests.cli.ErrataTests -->
+         <class name="com.redhat.qe.katello.tests.cli.SetupServers">
+            <test-method status="PASS" signature="setUp()[pri:0, instance:com.redhat.qe.katello.tests.cli.SetupServers@245b5f7e]" name="setUp" is-config="true" duration-ms="785" started-at="2013-05-23T23:53:46Z" description="setup Deltacloud Server and client" finished-at="2013-05-23T23:53:47Z" />
+            <!-- setUp -->
+            <test-method status="PASS" signature="tearDown()[pri:0, instance:com.redhat.qe.katello.tests.cli.SetupServers@245b5f7e]" name="tearDown" is-config="true" duration-ms="104" started-at="2013-05-23T23:54:38Z" finished-at="2013-05-23T23:54:39Z" />
+            <!-- tearDown -->
+         </class>
+         <!-- com.redhat.qe.katello.tests.cli.SetupServers -->
+      </test>
+      <!-- CLI_Tests -->
+   </suite>
+   <!-- CFSE Test Suite -->
+</testng-results>
+
