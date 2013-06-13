@@ -46,14 +46,13 @@ Build "unspecified" then serves as a placeholder build for the rest of the dry r
 ## Questions, that you might ask:
 
 * Do I allways need to create new run?
-** Yes, so far, we support only dry run, that creates nothing and real run, that creates new test-run. You can not upload two xmls to same run just yet. If you would like to, file an issue :-)
+   * Yes, so far, we support only dry run, that creates nothing and real run, that creates new test-run. You can not upload two xmls to same run just yet. If you would like to, file an issue :-)
 * Why all this work with uuid, alias and description? Couldnt you just use test-case id from tcms?
-** Because our team has one test-suite for several products, we need to clone and modify our test-plans from time to time. While cloned test cases would be the same, their id would differ. That is why we create uuid in alias.
+   * Because our team has one test-suite for several products, we need to clone and modify our test-plans from time to time. While cloned test cases would be the same, their id would differ. That is why we create uuid in alias.
 * What happens if I have test-cases with the same alias in tcms?
-** All of them will recieve the same result from xml.
+   * All of them will recieve the same result from xml.
 * What happens if I have test-cases with the same description in xml?
-** I have no idea. Most probably, only the first test-method result will be uploaded, and you will see lot of "can not create duplicate test case run" errors
-
+   * I have no idea. Most probably, only the first test-method result will be uploaded, and you will see lot of "can not create duplicate test case run" errors
  
 ## License
 
