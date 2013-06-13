@@ -20,7 +20,9 @@ After you tried connection with the dry run, you can remove --dry-run, run it wi
 * --rpc-url : set to default RedHat TCMS server, so you dont need to specify it ... if you think you do, please contact me, I would like to see the mad man who uses tcms outside of RedHat :-)
 *  xml-result : test-ng result xml, that contains special test case UUIDs in each test-method description that you like to upload. Example of such xml-file is the testng-results.xml in top level of the repo, or smaller, more readable testng-results-min.xml.
 
+```
 	<test-method status="PASS" signature="test_errataList()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataList" duration-ms="1043" started-at="2013-05-23T23:54:37Z" description="8782a6e0-f41a-48d5-8599-bfe7f24078f6" finished-at="2013-05-23T23:54:38Z" />
+```
 
 * --plan: id of the test plan accordint to which you run your tests. If you have access to Red Hat Tcms, you can look at plan 9032, katello-cli-automation-runs. You can see, that test case 269819, Katello cli `errata list` has in the field alias the same uuid as is in the description of the test method. This links the case from xml to case int test plan and helps in creating test-case-run
 
