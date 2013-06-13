@@ -53,6 +53,19 @@ Build "unspecified" then serves as a placeholder build for the rest of the dry r
    * All of them will recieve the same result from xml.
 * What happens if I have test-cases with the same description in xml?
    * I have no idea. Most probably, only the first test-method result will be uploaded, and you will see lot of "can not create duplicate test case run" errors
+
+## How to compile?
+
+It is a standard lein project.
+
+1) Download and install leiningen
+2) git clone git@github.com:AdamSaleh/tcms-upload.git
+3) cd tcms-upload
+4) lein deps
+5) lein compile
+6) lein uberjar
+
+Now you have a fresh jar to use.
  
 ## License
 
