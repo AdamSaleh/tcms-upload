@@ -8,9 +8,13 @@ Requires for the test cases in xml and tcms to share an uuid string, namely, it 
 
 To test your connection try to input all the necessary options with the --dry-run set. If everything works, you should see no errors/exceptions. 
 
+```
  java -jar tcms-upload-0.1.0-SNAPSHOT-standalone.jar --dry-run --username USERNAME --password PASSWORD --xml-result /home/asaleh/clean-room/tcms-upload/testng-results.xml --plan 9023 --build-name unspecified --manager-login asaleh --summary test23
+```
 
 After you tried connection with the dry run, you can remove --dry-run, run it with your verified parametres and enjoy seeing the creation of new test run with all the test case results uploaded.
+
+If something does not work and you see no reasonable error message in log, please file an issue on github, that includes the xml, the command and the log.
 
 ## Params
 
@@ -28,17 +32,19 @@ After you tried connection with the dry run, you can remove --dry-run, run it wi
 
 * --build-name : name of the build, IT WILL CREATE IT IF IT DOES NOT EXIST. You can verify that you enterd already existing build-name, if you do a dry-run and you will see log similar to
 
+```
 Jun 13, 2013 12:56:48 PM clojure.tools.logging$eval1$fn__7 invoke
 INFO: Calling: :Build.check_build  with  [new-build 313]
 Jun 13, 2013 12:56:49 PM clojure.tools.logging$eval1$fn__7 invoke
 INFO: Resolved params: {:build 3576}
+```
 
 If build does not exist, respective lines would look like this:
-
+```
 INFO: Calling: :Build.check_build  with  [not-yet-created-build 313]
 Jun 13, 2013 1:47:16 PM clojure.tools.logging$eval1$fn__7 invoke
 INFO: Calling: :Build.check_build  with  [unspecified 313]
-
+```
 Build "unspecified" then serves as a placeholder build for the rest of the dry run, and in real run, the "not-yet-created-build" will be created and used instead.
 
 * --manager-login : each test run in tcms has manager assigned at creation, you need to specify his login. 
