@@ -45,6 +45,7 @@
              :else [uuid (min (filter (partial = 2) status))])))
     (map (fn [[uuid status]]
            {:alias uuid, :case_run_status status}))))
+
 (defn get-alias-status-from-xml [filename]
   (->>
     (slurp filename)
@@ -55,7 +56,10 @@
       (and (map? %) (contains? % :tag) (= :reporter-output (:tag %))) 
         nil
       (and (map? %) (contains? % :tag) (= :test-method (:tag %))) 
-        {:alias (-> % :attrs :description) :case_run_status (get status (-> % :attrs :status)) }
+        {:alias (if (contains? (:attrs %) :uuid ) 
+                  (-> % :attrs :uuid) 
+                  (-> % :attrs :description)) 
+         :case_run_status (get status (-> % :attrs :status)) }
       (and (map? %) (contains? % :content)) 
         (into [] (:content %))  
       :else %))
