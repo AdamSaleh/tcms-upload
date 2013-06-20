@@ -24,6 +24,27 @@
      :blocked 6
     :error 7 "SKIP" 8})
 
+
+(defn side-print [x]
+  (print x)
+  x)
+
+(defn merge-alias-status-with-same-uuid [test-list]
+  (->> test-list 
+    (map :alias) 
+    (into #{})
+    (map (fn [test-alias ] 
+           [test-alias (->> test-list (filter #(= test-alias (:alias %)))
+             (map :case_run_status))]))
+    (map (fn [[uuid status]]
+           (when (< 1 (count status))
+             (log/info "Merging status of tests with uuid " uuid)) 
+           (cond
+             (every? #(= 2 %) status) [uuid 2]
+             (some #(= 3 %) status) [uuid 3]
+             :else [uuid (min (filter (partial = 2) status))])))
+    (map (fn [[uuid status]]
+           {:alias uuid, :case_run_status status}))))
 (defn get-alias-status-from-xml [filename]
   (->>
     (slurp filename)
@@ -39,11 +60,9 @@
         (into [] (:content %))  
       :else %))
     flatten
-    (filter #(not (nil? %)))))
+    (filter #(not (nil? %)))
+    merge-alias-status-with-same-uuid)) 
 
-(defn side-print [x]
-  (print x)
-  x)
 
 (defn process-test-case-ids [connection plan-id case-list]
   (some->

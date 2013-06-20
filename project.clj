@@ -6,9 +6,9 @@
   :dependencies [[org.clojure/clojure "1.5.0"]
                  [necessary-evil "2.0.0"]
                  [slingshot "0.10.3"]
+                 [org.clojure/tools.namespace "0.2.3"]
                  [org.clojure/tools.cli "0.2.2"]
                  [org.clojure/tools.logging "0.2.6"]
                  [org.clojure/data.zip "0.1.1"]]
-  :aot :all
-  :main tcms-upload.core
+  ;:main tcms-upload.core
   )
