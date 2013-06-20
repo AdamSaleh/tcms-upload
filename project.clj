@@ -1,4 +1,4 @@
-(defproject tcms-upload "0.1.2-SNAPSHOT"
+(defproject tcms-upload "0.1.7"
   :description "A simple command-line app for uploading test-ng xml results to tcms test runs."
   :url "https://github.com/AdamSaleh/tcms-upload"
   :license {:name "Eclipse Public License"
@@ -10,5 +10,5 @@
                  [org.clojure/tools.cli "0.2.2"]
                  [org.clojure/tools.logging "0.2.6"]
                  [org.clojure/data.zip "0.1.1"]]
-  ;:main tcms-upload.core
+  :main tcms-upload.core
   )
