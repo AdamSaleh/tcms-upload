@@ -1,4 +1,4 @@
-(defproject tcms-upload "0.1.7"
+(defproject tcms-upload "0.1.8"
   :description "A simple command-line app for uploading test-ng xml results to tcms test runs."
   :url "https://github.com/AdamSaleh/tcms-upload"
   :license {:name "Eclipse Public License"
