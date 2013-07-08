@@ -1,13 +1,14 @@
 (ns tcms-upload.core
   (:require [clojure.java.io :as io]
             [necessary-evil.fault :refer [fault?]]
-            [clojure.set :refer [intersection rename project join rename-keys]]
+            [clojure.set :refer [union difference intersection rename project join rename-keys]]
             [clojure.xml :as xml]
             [tcms-upload.rpc.test-plan :as test-plan]
             [tcms-upload.rpc.build :as build]
             [tcms-upload.rpc.user :as user]
             [tcms-upload.rpc.test-run :as test-run]
             [tcms-upload.rpc.test-case-run :as test-case-run]
+            [tcms-upload.rpc.test-case :as test-case]
             [clojure.tools.logging :as log]
             [slingshot.slingshot :refer [try+ throw+]]
             [clojure.zip :as zip]
@@ -26,7 +27,7 @@
 
 
 (defn side-print [x]
-  (print x)
+  (clojure.pprint/pprint x)
   x)
 
 (defn merge-alias-status-with-same-uuid [test-list]
@@ -34,17 +35,18 @@
     (map :alias) 
     (into #{})
     (map (fn [test-alias ] 
-           [test-alias (->> test-list (filter #(= test-alias (:alias %)))
-             (map :case_run_status))]))
-    (map (fn [[uuid status]]
-           (when (< 1 (count status))
-             (log/info "Merging status of tests with uuid " uuid)) 
+           [test-alias 
+            (->> test-list (filter #(= test-alias (:alias %)))(map :name) first)
+            (->> test-list (filter #(= test-alias (:alias %)))(map :case_run_status))]))
+    (map (fn [[uuid name status]]
+           ;(when (< 1 (count status))
+           ;  (log/info "Merging status of tests with uuid " uuid)) 
            (cond
-             (every? #(= 2 %) status) [uuid 2]
-             (some #(= 3 %) status) [uuid 3]
-             :else [uuid (min (filter (partial = 2) status))])))
-    (map (fn [[uuid status]]
-           {:alias uuid, :case_run_status status}))))
+             (every? #(= 2 %) status) [uuid name 2]
+             (some #(= 3 %) status) [uuid name 3]
+             :else [uuid name 8])))
+    (map (fn [[uuid name status]]
+           {:alias uuid, :name name, :case_run_status status}))))
 
 (defn get-alias-status-from-xml [filename]
   (->>
@@ -55,31 +57,81 @@
     (postwalk #(cond 
       (and (map? %) (contains? % :tag) (= :reporter-output (:tag %))) 
         nil
+      (and (map? %) (contains? % :tag) (= :test-method (:tag %))
+           (-> % :attrs :is-config)) 
+        nil
       (and (map? %) (contains? % :tag) (= :test-method (:tag %))) 
         {:alias (if (contains? (:attrs %) :uuid ) 
                   (-> % :attrs :uuid) 
                   (-> % :attrs :description)) 
+         :name (-> % :attrs :name) 
          :case_run_status (get status (-> % :attrs :status)) }
       (and (map? %) (contains? % :content)) 
         (into [] (:content %))  
       :else %))
     flatten
-    (filter #(not (nil? %)))
+    (remove nil?)
     merge-alias-status-with-same-uuid)) 
 
+(defn left-join [left right on]
+  (let [unjoinable (difference (set (map on left)) (set (map on right)))] 
+    unjoinable
+    (union
+      (join left right {on on})
+      (filter #(unjoinable (on %)) left)
+    )
+))
 
-(defn process-test-case-ids [connection plan-id case-list]
-  (some->
-    (test-plan/get-test-cases connection [plan-id])
+(defn create-unresolved-test-cases [connection opts case-list]
+  (map 
+    (fn [test-case]
+      (if (contains? test-case :case)
+        test-case
+        (-> (test-case/create connection
+             [{:product (opts :product) 
+               :category 596 ;default, hardcoded 
+               :alias (test-case :alias)
+               :priority 1; P1 hardcoded
+               :tag "tcms-uploader"
+               :summary (test-case :name)
+              }])
+            (#(if (contains? % :case_id)
+              (merge test-case {:case (:case_id %)})
+              (do
+               (log/info "Test case creation failed, not including")
+               nil ))))))
+    case-list))
+
+(defn ensure-all-cases-are-in-plan [connection opts case-list]
+  (let [cases-not-in-plan
+        (into []
+        (difference 
+          (set (map :case case-list))
+          (set (map :case_id 
+            (test-plan/get-test-cases connection [(:plan opts)])))))]
+    (test-case/link-plan connection [cases-not-in-plan (:plan opts)])
+    case-list))
+
+(defn process-test-case-ids [connection opts case-list]
+  (->
+    (map :alias case-list)
+    ((partial remove #(= "" %)))
+    ((partial map #(test-case/filter connection [{:alias %}])))
+    doall
+(side-print)
+    ((partial map first))
+    ((partial remove nil?))
     set
     (project [:case_id :alias])
     (rename {:case_id :case})
-    (join case-list)))
+    (#(into #{} %))
+    (#(left-join case-list % :alias))
+    ((partial create-unresolved-test-cases connection opts))
+    ((partial ensure-all-cases-are-in-plan connection opts))
+    ))
 
 (defn map-project [map ks]
   (first (project #{map} ks)))
-
-
 
 (defn product-and-version-id [con opts]
   (-> 
@@ -114,14 +166,24 @@
             (throw+ (str "Couldn't resolve " verify))))
     (merge opts)))
 
+(defn tryget [] 
+  (for [case (get-alias-status-from-xml "/home/asaleh/clean-room/tcms-upload/testng-report.xml")]
+    (->>
+        (test-case/filter {:rpc-url "https://tcms.engineering.redhat.com/xmlrpc/" :username "asaleh" :password "#Nitrate1"} [{:summary__icontains (:name case)}])
+      (map #(map-project % [:summary :case_id]))
+      (filter #(not (.startsWith (% :summary) "katello-tests.")))
+  )))
 
 (defn new-test-run [con opts]
-  (-> opts
-    (map-project [:plan :build :manager :status :summary 
-                  :product :product_version])
-    (#(test-run/create con [%]))
-    (map-project [:run_id])
-    (rename-keys {:run_id :run})))
+  (cond 
+    (contains? opts :run)
+      opts
+    :else (-> opts
+      (map-project [:plan :build :manager :status :summary 
+                    :product :product_version])
+      (#(test-run/create con [(merge % {:tag "tcms-uploader"})]))
+      (map-project [:run_id])
+      (rename-keys {:run_id :run}))))
 
 (defn test-run-status [cases con opts]
    (some->
@@ -139,7 +201,7 @@
     (resolv #{} new-test-run con) ;not checking run    
     (#(map (partial merge %) cases))
     (#(project % [:build :run :case :case_run_status]))
-    (map #(test-case-run/create con [%]))
+    (map #(test-case-run/create con [(merge % {:tag "tcms-uploader"})]))
     doall
     log/info))
 
@@ -147,16 +209,15 @@
   (let [xml (get-alias-status-from-xml (:xml-result opts))
         resolved-opts 
           (->>  opts
-						(resolv #{:product :product_version} product-and-version-id con)
-						(resolv #{:build} build-id con)
-				    (resolv #{:manager} manager-id con))]
+		(resolv #{:product :product_version} product-and-version-id con)
+		(resolv #{:build} build-id con)
+		(resolv #{:manager} manager-id con))]
         (->>
           xml
           (#(do (log/info "XML:" %) %))
-          (process-test-case-ids con (:plan resolved-opts))
+          (process-test-case-ids con resolved-opts)
           (#(do (log/info "Test cases:" %) %))
           (create-test-run con resolved-opts))))
-
 
 (defn try-upload [con opts]
   (try+
@@ -176,6 +237,7 @@
              ["-r" "--rpc-url" "Url of tcms xmlrpc" :default "https://tcms.engineering.redhat.com/xmlrpc/"]
              ["-x" "--xml-result" "Result xml"]
              ["-P" "--plan" "Id of the test plan"]
+             ["-R" "--run" "Id of the test run"]
              ["-B" "--build-name" "Name of the build"]
              ["-M" "--manager-login" "managers tcms login" ]
              ["-S" "--summary" "test-run summary" ])]

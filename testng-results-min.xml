@@ -20,8 +20,14 @@
             <test-method status="PASS" signature="test_errataInfo()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataInfo" duration-ms="1081" started-at="2013-05-23T23:54:36Z" description="2542ae61-8de6-40ce-866f-999c39fa9018" finished-at="2013-05-23T23:54:37Z" />
             <test-method status="PASS" signature="test_errataInfo()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataInfo" duration-ms="1081" started-at="2013-05-23T23:54:36Z" description="2542ae61-8de6-40ce-866f-999c39fa9018" finished-at="2013-05-23T23:54:37Z" />
             <!-- test_errataInfo -->
-            <test-method status="PASS" signature="test_errataList()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataList" duration-ms="1043" started-at="2013-05-23T23:54:37Z" description="8782a6e0-f41a-48d5-8599-bfe7f24078f6" finished-at="2013-05-23T23:54:38Z" />
-            <test-method status="FAIL" signature="test_errataList()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataList" duration-ms="1043" started-at="2013-05-23T23:54:37Z" description="8782a6e0-f41a-48d5-8599-bfe7f24078f6" finished-at="2013-05-23T23:54:38Z" />
+	    <test-method status="PASS" signature="test_errataList()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataList" duration-ms="1043" started-at="2013-05-23T23:54:37Z" 
+	    uuid="8782a6e0-f41a-48d5-8599-bfe7f24078f6" 
+	    description="mfmfmp" 
+	    finished-at="2013-05-23T23:54:38Z" />
+	    <test-method status="FAIL" signature="test_errataList()[pri:0, instance:com.redhat.qe.katello.tests.cli.ErrataTests@62bbb074]" name="test_errataList" duration-ms="1043" started-at="2013-05-23T23:54:37Z" 
+	    uuid="8782a6e0-f41a-48d5-8599-bfe7f24078f6"
+	    description="asdfrewewdw"
+	    finished-at="2013-05-23T23:54:38Z" />
             <!-- test_errataList -->
          </class>
          <!-- com.redhat.qe.katello.tests.cli.ErrataTests -->
