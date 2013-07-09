@@ -204,17 +204,26 @@
              ))
     doall
     (#(join cases % {:case :case_id}))
-    (map (fn [tc] 
-      (if (and (coll? (:log tc)) (not (empty (:log tc))))
-          (doall (map 
-            #(test-case-run/add-comment con [(:case_run_id tc) %]) 
-            (filter #(not (string? %))        
-            (:log tc))
-                   ))
-        ;else
-        (when (string? (:log tc))
-          #(test-case-run/add-comment con [(:case_run_id tc) (:log tc)]) 
-        ))))
+    (map 
+      (fn [tc] 
+        (if (and (coll? (:log tc)) (not (empty? (:log tc))))
+          (doall
+          (map 
+            #(try+ 
+               (test-case-run/add-comment con [(:case_run_id tc) %]) 
+               (catch Object _
+                 (log/error (:message &throw-context))))
+              (filter #(and (string? %) (not (empty? %)))         
+                (:log tc))
+                   )
+                   )
+          ;else
+          (when (and (string? (:log tc)) (not (empty? (:log tc))))
+            (try+ 
+              (test-case-run/add-comment con [(:case_run_id tc) (:log tc)]) 
+              (catch Object _
+                 (log/error (:message &throw-context)))
+        )))))
     doall
     ))
 
