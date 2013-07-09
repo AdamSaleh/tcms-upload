@@ -16,7 +16,7 @@
             [clojure.data.zip.xml :as zfx]
             [clojure.tools.cli :refer [cli]]
             [clojure.string :refer [split trim]]
-            [clojure.walk :refer [postwalk] ])
+            [clojure.walk :refer [postwalk prewalk] ])
   (:gen-class :main true))
 
 (def status
@@ -37,16 +37,17 @@
     (map (fn [test-alias ] 
            [test-alias 
             (->> test-list (filter #(= test-alias (:alias %)))(map :name) first)
-            (->> test-list (filter #(= test-alias (:alias %)))(map :case_run_status))]))
-    (map (fn [[uuid name status]]
+            (->> test-list (filter #(= test-alias (:alias %)))(map :log))
+            (->> test-list (filter #(= test-alias (:alias %))) (map :case_run_status))]))
+    (map (fn [[uuid name log status]]
            ;(when (< 1 (count status))
            ;  (log/info "Merging status of tests with uuid " uuid)) 
            (cond
-             (every? #(= 2 %) status) [uuid name 2]
-             (some #(= 3 %) status) [uuid name 3]
-             :else [uuid name 8])))
-    (map (fn [[uuid name status]]
-           {:alias uuid, :name name, :case_run_status status}))))
+             (every? #(= 2 %) status) [uuid name log 2]
+             (some #(= 3 %) status) [uuid name log 3]
+             :else [uuid name log 8])))
+    (map (fn [[uuid name log status]]
+           {:alias uuid, :name name,:log log :case_run_status status}))))
 
 (defn get-alias-status-from-xml [filename]
   (->>
@@ -55,8 +56,6 @@
     org.xml.sax.InputSource.
     xml/parse
     (postwalk #(cond 
-      (and (map? %) (contains? % :tag) (= :reporter-output (:tag %))) 
-        nil
       (and (map? %) (contains? % :tag) (= :test-method (:tag %))
            (-> % :attrs :is-config)) 
         nil
@@ -65,13 +64,22 @@
                   (-> % :attrs :uuid) 
                   (-> % :attrs :description)) 
          :name (-> % :attrs :name) 
-         :case_run_status (get status (-> % :attrs :status)) }
+         :case_run_status (get status (-> % :attrs :status)) 
+         :log (if (coll? %)
+                (->> % :content
+                  flatten
+                  (map str)
+                  clojure.string/join   
+                  )
+                (% :content))}
       (and (map? %) (contains? % :content)) 
         (into [] (:content %))  
       :else %))
     flatten
     (remove nil?)
-    merge-alias-status-with-same-uuid)) 
+    (filter map?)
+   merge-alias-status-with-same-uuid)) 
+
 
 (defn left-join [left right on]
   (let [unjoinable (difference (set (map on left)) (set (map on right)))] 
@@ -79,8 +87,7 @@
     (union
       (join left right {on on})
       (filter #(unjoinable (on %)) left)
-    )
-))
+    )))
 
 (defn create-unresolved-test-cases [connection opts case-list]
   (map 
@@ -118,7 +125,6 @@
     ((partial remove #(= "" %)))
     ((partial map #(test-case/filter connection [{:alias %}])))
     doall
-(side-print)
     ((partial map first))
     ((partial remove nil?))
     set
@@ -166,14 +172,6 @@
             (throw+ (str "Couldn't resolve " verify))))
     (merge opts)))
 
-(defn tryget [] 
-  (for [case (get-alias-status-from-xml "/home/asaleh/clean-room/tcms-upload/testng-report.xml")]
-    (->>
-        (test-case/filter {:rpc-url "https://tcms.engineering.redhat.com/xmlrpc/" :username "asaleh" :password "#Nitrate1"} [{:summary__icontains (:name case)}])
-      (map #(map-project % [:summary :case_id]))
-      (filter #(not (.startsWith (% :summary) "katello-tests.")))
-  )))
-
 (defn new-test-run [con opts]
   (cond 
     (contains? opts :run)
@@ -200,10 +198,25 @@
     (resolv #{:status} (partial test-run-status cases) con) 
     (resolv #{} new-test-run con) ;not checking run    
     (#(map (partial merge %) cases))
-    (#(project % [:build :run :case :case_run_status]))
-    (map #(test-case-run/create con [(merge % {:tag "tcms-uploader"})]))
+    (#(project % [:build :run :case :log :case_run_status]))
+    (map (fn [tc] 
+           (test-case-run/create con [(merge (dissoc tc :log) {:tag "tcms-uploader"})])
+             ))
     doall
-    log/info))
+    (#(join cases % {:case :case_id}))
+    (map (fn [tc] 
+      (if (and (coll? (:log tc)) (not (empty (:log tc))))
+          (doall (map 
+            #(test-case-run/add-comment con [(:case_run_id tc) %]) 
+            (filter #(not (string? %))        
+            (:log tc))
+                   ))
+        ;else
+        (when (string? (:log tc))
+          #(test-case-run/add-comment con [(:case_run_id tc) (:log tc)]) 
+        ))))
+    doall
+    ))
 
 (defn upload [con opts]
   (let [xml (get-alias-status-from-xml (:xml-result opts))
