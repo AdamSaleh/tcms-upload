@@ -1,6 +1,7 @@
 (ns tcms-upload.core
   (:require [clojure.java.io :as io]
             [necessary-evil.fault :refer [fault?]]
+            [clojure.pprint :refer [pprint]]
             [clojure.set :refer [union difference intersection rename project join rename-keys]]
             [clojure.xml :as xml]
             [tcms-upload.rpc.test-plan :as test-plan]
@@ -11,6 +12,7 @@
             [tcms-upload.rpc.test-case :as test-case]
             [clojure.tools.logging :as log]
             [slingshot.slingshot :refer [try+ throw+]]
+            [clj-http.client :as client]
             [clojure.zip :as zip]
             [clojure.data.zip :as zf]
             [clojure.data.zip.xml :as zfx]
@@ -18,6 +20,41 @@
             [clojure.string :refer [split trim]]
             [clojure.walk :refer [postwalk prewalk] ])
   (:gen-class :main true))
+;28703
+(defn attach-file [con case-id file]
+  (client/post (con :upload-url)  
+               { :insecure? true
+                :basic-auth [(con :username)
+                             (con :password)]
+                :multipart [ 
+                         {:name "to_case_id" :content (str case-id)} 
+                   {:name "Content/type" :content "text/xml"}
+                   {:name "upload_file" :content file }]}))
+
+(defn attach-string [con case-id name string]
+  (let [f (java.io.File/createTempFile name ".log")]
+        (.deleteOnExit f)
+           (spit (.getAbsolutePath f) string)
+       (some->> 
+        (try+
+           (attach-file con case-id f)
+           (catch Object _
+             nil))
+         :headers
+         (#(get % "location"))
+         (#(try+
+          (client/get % {:basic-auth ["asaleh" "#Nitrate1"] :insecure? true})
+           (catch Object _
+             nil)))
+          :body 
+         (re-find (re-pattern (str
+                                "<a href=\"/management/checkfile/\\d+/\">"
+                                (.getName f)
+                                "</a>")))
+         (re-find (re-pattern "/management/checkfile/\\d+/"))
+         (str "https://tcms.engineering.redhat.com")
+         )
+       ))
 
 (def status
     {:idle 1 "PASS" 2 "FAIL" 3
@@ -25,6 +62,20 @@
      :blocked 6
     :error 7 "SKIP" 8})
 
+(defn upload-to-pastebin [url user content]
+  (->
+    (client/post url 
+               {:form-params {:parent_pid ""
+                              :format "text"
+                              :code2  content 
+                              :poster user 
+                              :paste  "Send"
+                              :expiry "f"}}
+                )
+     (#(if (contains? % :headers)
+        (get  (:headers %) "location")
+        nil))
+    ))
 
 (defn side-print [x]
   (clojure.pprint/pprint x)
@@ -65,29 +116,28 @@
                   (-> % :attrs :description)) 
          :name (-> % :attrs :name) 
          :case_run_status (get status (-> % :attrs :status)) 
-         :log (if (coll? %)
-                (->> % :content
-                  flatten
-                  (map str)
-                  clojure.string/join   
-                  )
-                (% :content))}
-      (and (map? %) (contains? % :content)) 
-        (into [] (:content %))  
+         :log (try+
+              (with-out-str (xml/emit (first (% :content))))
+              (catch Object _
+                (when (not (nil? (% :content)))
+                 (with-out-str (pprint (% :content))))))}
+      :else %))
+    (postwalk #(cond
+      (and (map? %) (contains? % :content))
+                 (:content %)
       :else %))
     flatten
     (remove nil?)
     (filter map?)
-   merge-alias-status-with-same-uuid)) 
-
+    merge-alias-status-with-same-uuid
+  )) 
 
 (defn left-join [left right on]
   (let [unjoinable (difference (set (map on left)) (set (map on right)))] 
     unjoinable
     (union
       (join left right {on on})
-      (filter #(unjoinable (on %)) left)
-    )))
+      (filter #(unjoinable (on %)) left))))
 
 (defn create-unresolved-test-cases [connection opts case-list]
   (map 
@@ -119,7 +169,7 @@
     (test-case/link-plan connection [cases-not-in-plan (:plan opts)])
     case-list))
 
-(defn process-test-case-ids [connection opts case-list]
+(defn get-case-list-from-alias [connection case-list]
   (->
     (map :alias case-list)
     ((partial remove #(= "" %)))
@@ -130,11 +180,14 @@
     set
     (project [:case_id :alias])
     (rename {:case_id :case})
-    (#(into #{} %))
+    (#(into #{} %))))
+
+(defn process-test-case-ids [connection opts case-list]
+  (->
+    (get-case-list-from-alias connection case-list)
     (#(left-join case-list % :alias))
     ((partial create-unresolved-test-cases connection opts))
-    ((partial ensure-all-cases-are-in-plan connection opts))
-    ))
+    ((partial ensure-all-cases-are-in-plan connection opts))))
 
 (defn map-project [map ks]
   (first (project #{map} ks)))
@@ -193,6 +246,64 @@
     (#(if % {:status 1}
             {:status 0})))) ; if cases of plan are a subset of cases in xml return STOPPED (1)
 
+(defn upload-logs-and-bugs [con opts cases-and-case-runs]
+  (do
+  (->> cases-and-case-runs
+    (map (fn [case]
+      (when (not (nil? (case :bug_id)))
+        (test-case-run/attach-bug con [(map-project case [:case_run_id :bug_id :bug_system_id] )]
+))))
+      doall )
+  (->> cases-and-case-runs
+    (map (fn [case]
+           (let [log-url (attach-string 
+                           con 
+                           (case :case_id)
+                           "tcmsuploader"
+                           (case :log))]
+           (merge case {:url log-url}))))
+    (remove #(nil? (:url %)))
+    (map (fn [case]
+           (try+
+           (test-case-run/attach-log con [(case :case_run_id) "Log" (case :url)])
+           (catch Object _
+                 (:message &throw-context)))
+           ))
+      )))
+
+
+
+(defn add-logs-to-cases [cases-and-case-runs]
+  (->> cases-and-case-runs 
+       (#(project % [:case_run_id :case_id :log]))
+       (map (fn [l] (cond (coll? (:log l)) 
+                    
+                     (join 
+                       #{(map-project l [:case_run_id :case_id] )}
+                       (into #{} 
+                             (map (fn [a] {:log a})
+                                  (l :log)
+                                  )
+                             )
+                       )  
+                   :else l)))
+      (reduce union) 
+      (filter #(string? (:log %)))
+      (remove #(nil? (:log %)))
+      (remove #(empty? (:log %)))
+    ))
+
+(defn add-bugs-to-cases [cases-and-case-runs]
+   (->> cases-and-case-runs
+        (map (fn [case]
+               (merge case
+                 (some->> case
+                   :log
+                   (re-find (re-pattern "<a href='https://bugzilla.*/show_bug.cgi.*'>"))
+                   (re-find (re-pattern "\\d+"))
+                   (hash-map :bug_system_id 1 :bug_id)))))))
+
+              
 (defn create-test-run [con opts cases]
   (->> opts
     (resolv #{:status} (partial test-run-status cases) con) 
@@ -204,28 +315,10 @@
              ))
     doall
     (#(join cases % {:case :case_id}))
-    (map 
-      (fn [tc] 
-        (if (and (coll? (:log tc)) (not (empty? (:log tc))))
-          (doall
-          (map 
-            #(try+ 
-               (test-case-run/add-comment con [(:case_run_id tc) %]) 
-               (catch Object _
-                 (log/error (:message &throw-context))))
-              (filter #(and (string? %) (not (empty? %)))         
-                (:log tc))
-                   )
-                   )
-          ;else
-          (when (and (string? (:log tc)) (not (empty? (:log tc))))
-            (try+ 
-              (test-case-run/add-comment con [(:case_run_id tc) (:log tc)]) 
-              (catch Object _
-                 (log/error (:message &throw-context)))
-        )))))
-    doall
-    ))
+    add-logs-to-cases
+    add-bugs-to-cases
+    ((partial upload-logs-and-bugs con opts))
+       ))
 
 (defn upload [con opts]
   (let [xml (get-alias-status-from-xml (:xml-result opts))
@@ -257,6 +350,7 @@
              ["-u" "--username" "tcms username"]
              ["-p" "--password" "tcms password"]
              ["-r" "--rpc-url" "Url of tcms xmlrpc" :default "https://tcms.engineering.redhat.com/xmlrpc/"]
+             ["-U" "--upload-url" "Url of tcms uploads" :default "https://tcms.engineering.redhat.com/management/uploadfile/"]
              ["-x" "--xml-result" "Result xml"]
              ["-P" "--plan" "Id of the test plan"]
              ["-R" "--run" "Id of the test run"]
@@ -272,7 +366,7 @@
          (:xml-result opts) (:plan opts) (:build-name opts)
          (:manager-login opts) (:summary opts))
       
-        (let [connection (map-project opts [:username :password :dry-run :rpc-url])]
+        (let [connection (map-project opts [:username :password :dry-run :rpc-url :upload-url])]
             (try-upload connection opts))    
         (do 
           (when (not (:username opts)) (println "Tcms username not set"))
@@ -287,3 +381,9 @@
 ;--dry-run --username asaleh --password #Nitrate1 --xml-result /home/asaleh/clean-room/tcms-upload/testng-results.xml 
 ;--plan 9023 --build-name unspecified --manager-login asaleh --summary test23
 
+(defn convert-dates [date-str in-format-str out-format-str]
+  (let [in-format (java.text.SimpleDateFormat. in-format-str)
+        out-format (java.text.SimpleDateFormat. out-format-str)]
+     (->> date-str
+       (.parse in-format)
+       (.format out-format))))
