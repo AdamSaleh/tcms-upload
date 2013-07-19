@@ -10,7 +10,7 @@
             [tcms-upload.rpc.test-run :as test-run]
             [tcms-upload.rpc.test-case-run :as test-case-run]
             [tcms-upload.rpc.test-case :as test-case]
-            [clojure.tools.logging :as log]
+            [tcms-upload.log :as log]
             [slingshot.slingshot :refer [try+ throw+]]
             [clj-http.client :as client]
             [clojure.zip :as zip]
@@ -92,7 +92,7 @@
             (->> test-list (filter #(= test-alias (:alias %))) (map :case_run_status))]))
     (map (fn [[uuid name log status]]
            ;(when (< 1 (count status))
-           ;  (log/info "Merging status of tests with uuid " uuid)) 
+           ;  (log/log ["Merging status of tests with uuid " uuid])) 
            (cond
              (every? #(= 2 %) status) [uuid name log 2]
              (some #(= 3 %) status) [uuid name log 3]
@@ -155,7 +155,7 @@
             (#(if (contains? % :case_id)
               (merge test-case {:case (:case_id %)})
               (do
-               (log/info "Test case creation failed, not including")
+               (log/log "Test case creation failed, not including")
                nil ))))))
     case-list))
 
@@ -218,7 +218,7 @@
 (defn resolv [verify res-fn con opts]
   (->
     (res-fn con opts)
-    (#(do (log/info "Resolved params:" %) %))
+    (#(do (log/log ["Resolved params:" %]) %))
     (#(if (= verify
              (intersection verify (into #{} (keys %)))) 
             %
@@ -327,7 +327,7 @@
                      ;update aims to work on lists of cases, therefore first is required  
                      (first (test-case-run/update con [case-run (dissoc tc :log)])))
                    (catch Object _
-                      (log/error (:message &throw-context))
+                      (log/log (:message &throw-context))
                      nil))
                      :else nil))
              )))
@@ -348,16 +348,16 @@
 		(resolv #{:manager} manager-id con))]
         (->>
           xml
-          (#(do (log/info "XML:" %) %))
+          (#(do (log/log ["XML:" %]) %))
           (process-test-case-ids con resolved-opts)
-          (#(do (log/info "Test cases:" %) %))
+          (#(do (log/log ["Test cases:" %]) %))
           (create-test-run con resolved-opts))))
 
 (defn try-upload [con opts]
   (try+
     (upload con opts)
     (catch Object _
-                 (log/error (:message &throw-context)))))
+                 (log/log (:message &throw-context)))))
 
 (defn -main
   "I don't do a whole lot."

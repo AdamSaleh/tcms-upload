@@ -1,5 +1,5 @@
 (ns tcms-upload.rpc
-    (:require [clojure.tools.logging :as log]
+    (:require [tcms-upload.log :as log]
               [necessary-evil.core :as rpc]
               [slingshot.slingshot :refer [throw+]]
               [clojure.set :refer [intersection]]
@@ -17,10 +17,10 @@
 (defn call [modifying command connection args]
       (if (and modifying (:dry-run connection))
         (do
-          (log/info "Dry calling:" command " with " args)
+          (log/log ["Dry calling:" command " with " args])
           {})
         (do
-          (log/info "Calling:" command " with " args)
+          (log/log ["Calling:" command " with " args])
           (let [res (b-call command connection args)]
              (if (fault? res)
                 (throw+ res)
