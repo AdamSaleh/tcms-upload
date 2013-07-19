@@ -311,9 +311,28 @@
     (#(map (partial merge %) cases))
     (#(project % [:build :run :case :log :case_run_status]))
     (map (fn [tc] 
-           (test-case-run/create con [(merge (dissoc tc :log) {:tag "tcms-uploader"})])
-             ))
+           (try+
+             (test-case-run/create con [(merge (dissoc tc :log) {:tag "tcms-uploader"})])
+             (catch Object _
+               (println "crate failed")
+               (cond (:overwrite opts)
+                 (try+
+
+                 (println "owerwrite")
+                     (let [case-run 
+                           (->> 
+                          (test-case-run/filter con [(map-project tc [:run :case])])
+                             first
+                             :case_run_id )]
+                     ;update aims to work on lists of cases, therefore first is required  
+                     (first (test-case-run/update con [case-run (dissoc tc :log)])))
+                   (catch Object _
+                      (log/error (:message &throw-context))
+                     nil))
+                     :else nil))
+             )))
     doall
+    (remove nil?)
     (#(join cases % {:case :case_id}))
     add-logs-to-cases
     add-bugs-to-cases
@@ -354,6 +373,7 @@
              ["-x" "--xml-result" "Result xml"]
              ["-P" "--plan" "Id of the test plan"]
              ["-R" "--run" "Id of the test run"]
+             ["-O" "--overwrite" "Overwrite test-case-run" :flag true :default true]
              ["-B" "--build-name" "Name of the build"]
              ["-M" "--manager-login" "managers tcms login" ]
              ["-S" "--summary" "test-run summary" ])]
