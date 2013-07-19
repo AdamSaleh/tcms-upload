@@ -1,4 +1,5 @@
 (ns tcms-upload.rpc.test-case-run
+  (:refer-clojure :exclude [filter])
   (:require 
     [tcms-upload.rpc :refer [defrpc]]))
 
