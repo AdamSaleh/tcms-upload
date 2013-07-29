@@ -6,19 +6,20 @@ Requires for the test cases in xml and tcms to share an uuid string, namely, it 
 
 ## Usage
 
-To test your connection try to input all the necessary options with the --dry-run set. If everything works, you should see no errors/exceptions. 
+Your command should look simirraliry to this:
 
 ```
- java -jar tcms-upload-0.1.0-SNAPSHOT-standalone.jar --dry-run --username USERNAME --password PASSWORD --xml-result /home/asaleh/clean-room/tcms-upload/testng-results.xml --plan 9023 --build-name unspecified --manager-login asaleh --summary test23
+java -jar tcms-upload-0.1.12-standalone.jar --username asaleh --password $PASSWORD 
+--plan 9032 --xml-result testng-results.xml --manager-login jweiss --summary "tcms demo showcase run" --build-name 2013-07-20-build
 ```
 
-After you tried connection with the dry run, you can remove --dry-run, run it with your verified parametres and enjoy seeing the creation of new test run with all the test case results uploaded.
 
 If something does not work and you see no reasonable error message in log, please file an issue on github, that includes the xml, the command and the log.
 
+As of now, we don't support any kind of dry run, so if you will need to erase some sort of a bad upload, you can use the "tcms-uploader" tag to help you narrow the search.
+
 ## Params
 
-* --dry-run : do not send any rpc commands to server that might create/update stuff
 * --username : your kerberos username
 * --password : your kerberos password
 * --rpc-url : set to default RedHat TCMS server, so you dont need to specify it ... if you think you do, please contact me, I would like to see the mad man who uses tcms outside of RedHat :-)
@@ -54,7 +55,7 @@ Build "unspecified" then serves as a placeholder build for the rest of the dry r
 ## Questions, that you might ask:
 
 * Do I allways need to create new run?
-   * Yes, so far, we support only dry run, that creates nothing and real run, that creates new test-run. You can not upload two xmls to same run just yet. If you would like to, file an issue :-)
+   * no, you can specify old run id with --run option. By default it shall overwrite all the previous case-results.
 * Why all this work with uuid, alias and description? Couldnt you just use test-case id from tcms?
    * Because our team has one test-suite for several products, we need to clone and modify our test-plans from time to time. While cloned test cases would be the same, their id would differ. That is why we create uuid in alias.
 * What happens if I have test-cases with the same alias in tcms?
@@ -70,7 +71,6 @@ It is a standard lein project.
 2) git clone git@github.com:AdamSaleh/tcms-upload.git
 3) cd tcms-upload
 4) lein deps
-5) lein compile
 6) lein uberjar
 
 Now you have a fresh jar to use.
