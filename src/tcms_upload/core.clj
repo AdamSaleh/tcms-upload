@@ -32,6 +32,7 @@
                    {:name "upload_file" :content file }]}))
 
 (defn attach-string [con case-id name string]
+  (log/log [:attaching con case-id name string])
   (let [f (java.io.File/createTempFile name ".log")]
         (.deleteOnExit f)
            (spit (.getAbsolutePath f) string)
@@ -39,13 +40,15 @@
         (try+
            (attach-file con case-id f)
            (catch Object _
-             nil))
+               (log/log (:message &throw-context))
+             ))
          :headers
          (#(get % "location"))
          (#(try+
           (client/get % {:basic-auth ["asaleh" "#Nitrate1"] :insecure? true})
            (catch Object _
-             nil)))
+               (log/log (:message &throw-context))
+             )))
           :body 
          (re-find (re-pattern (str
                                 "<a href=\"/management/checkfile/\\d+/\">"
@@ -262,6 +265,7 @@
                            "tcmsuploader"
                            (case :log))]
            (merge case {:url log-url}))))
+    (#(do (log/log %) %))
     (remove #(nil? (:url %)))
     (map (fn [case]
            (try+
@@ -336,6 +340,7 @@
     (#(join cases % {:case :case_id}))
     add-logs-to-cases
     add-bugs-to-cases
+    (#(do (log/log [:before-log %]) %))
     ((partial upload-logs-and-bugs con opts))
        ))
 
@@ -365,7 +370,6 @@
   (let [[opts args banner]
         (cli args
              ["-h" "--help" "Show help" :flag true :default false]
-             ["-D" "--dry-run" "no modifying rpc calls are made" :flag true :default false]
              ["-u" "--username" "tcms username"]
              ["-p" "--password" "tcms password"]
              ["-r" "--rpc-url" "Url of tcms xmlrpc" :default "https://tcms.engineering.redhat.com/xmlrpc/"]
