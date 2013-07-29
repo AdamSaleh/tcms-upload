@@ -262,17 +262,20 @@
            (let [log-url (attach-string 
                            con 
                            (case :case_id)
-                           "tcmsuploader"
+                           "tcmsuploadlog"
                            (case :log))]
            (merge case {:url log-url}))))
-    (#(do (log/log %) %))
+    (#(do (log/log [:attached %]) %))
     (remove #(nil? (:url %)))
-    (map (fn [case]
+    (#(do (log/log [:removed-w-no-url %]) %))
+    (map 
+      (fn [case]
            (try+
            (test-case-run/attach-log con [(case :case_run_id) "Log" (case :url)])
            (catch Object _
-                 (:message &throw-context)))
-           ))
+                 (:message &throw-context))) )
+                      )
+       doall
       )))
 
 
